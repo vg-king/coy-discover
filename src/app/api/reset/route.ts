@@ -1,5 +1,4 @@
 import { prisma } from "@/lib/prisma";
-import { serviceErrorResponse } from "@/lib/api-response";
 import { resetDemo } from "@/lib/services/reset";
 
 export async function POST() {
@@ -10,7 +9,7 @@ export async function POST() {
   try {
     await resetDemo(prisma);
     return Response.json({ ok: true });
-  } catch (error) {
-    return serviceErrorResponse(error);
+  } catch {
+    return Response.json({ error: "reset_failed" }, { status: 500 });
   }
 }

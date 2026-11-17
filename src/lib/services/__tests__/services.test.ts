@@ -7,6 +7,7 @@ import {
 import { seedDatabase } from "@/lib/seed-data";
 import { getFeed } from "@/lib/services/feed";
 import { getMatches } from "@/lib/services/matches";
+import { resetDemo } from "@/lib/services/reset";
 import { swipe } from "@/lib/services/swipe";
 
 const adapter = new PrismaPg({
@@ -132,5 +133,22 @@ describe("swipes and matches", () => {
     );
     expect(likeResponse).toEqual({ matched: false });
     expect(passResponse).toEqual({ matched: false });
+  });
+
+  it("resets the demo in a batch and can reset repeatedly", async () => {
+    await swipe(db, { targetId: "u3", direction: "LIKE" });
+    expect(await db.match.count()).toBe(1);
+
+    await resetDemo(db);
+    await resetDemo(db);
+
+    expect(await db.user.count()).toBe(33);
+    expect(await db.swipe.count()).toBe(7);
+    expect(
+      await db.swipe.count({
+        where: { direction: SwipeDirection.LIKE, targetId: "me" },
+      }),
+    ).toBe(7);
+    expect(await db.match.count()).toBe(0);
   });
 });

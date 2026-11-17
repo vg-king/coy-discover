@@ -204,7 +204,10 @@ describe("DiscoverDeck swipe interaction", () => {
     await waitFor(() => screen.getByRole("tab", { name: "matches" }));
     fireEvent.click(screen.getByRole("tab", { name: "matches" }));
 
-    await waitFor(() => expect(screen.getByText("Alpha, 22")).toBeTruthy());
+    await waitFor(() => {
+      expect(screen.getByText("Alpha")).toBeTruthy();
+      expect(screen.getByText(", 22")).toBeTruthy();
+    });
   });
 
   it("renders the empty matches state when there are no matches", async () => {

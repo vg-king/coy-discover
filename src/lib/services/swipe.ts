@@ -146,7 +146,7 @@ export async function swipe(
           direction as SwipeDirection,
         );
       },
-      { maxWait: 20_000, timeout: 30_000 },
+      { maxWait: 10_000, timeout: 20_000 },
     );
   } catch (error) {
     if (!isUniqueConstraintError(error)) {

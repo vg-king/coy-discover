@@ -523,8 +523,8 @@ export function DiscoverDeck({ onMatch }: DiscoverDeckProps) {
                     className="aspect-square w-full border-b-[2.5px] border-coy-ink bg-coy-lavender object-cover"
                   />
                   <span className="block p-3">
-                    <strong className="block truncate font-heading text-lg font-extrabold">
-                      {match.profile.name}, {match.profile.age}
+                    <strong className="flex min-w-0 font-heading text-lg font-extrabold">
+                      <span className="min-w-0 truncate">{match.profile.name}</span><span className="shrink-0">, {match.profile.age}</span>
                     </strong>
                     <span className="mt-1 block truncate text-xs font-bold text-coy-muted">
                       {match.profile.city}
@@ -710,7 +710,7 @@ export function DiscoverDeck({ onMatch }: DiscoverDeckProps) {
         <div
           role="status"
           aria-live="polite"
-          className="fixed bottom-24 left-1/2 z-50 -translate-x-1/2 rounded-pill border-[2.5px] border-coy-ink bg-coy-ink px-4 py-2 text-sm font-bold text-white shadow-ink"
+          className="fixed bottom-[92px] left-1/2 z-[60] -translate-x-1/2 rounded-pill border-[2.5px] border-coy-ink bg-coy-ink px-4 py-2 text-sm font-bold text-white shadow-ink"
         >
           {toast}
         </div>

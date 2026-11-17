@@ -1,4 +1,4 @@
-import { PrismaClient, SwipeDirection } from "@/generated/prisma/client";
+import { Prisma, PrismaClient, SwipeDirection } from "@/generated/prisma/client";
 import { avatarUrl } from "@/lib/avatar";
 
 const MOCK_PROFILES = [
@@ -39,37 +39,44 @@ const MOCK_PROFILES = [
 // Exactly these 7 profiles have a LIKE pointing to "me"
 const LIKERS = ["u3", "u7", "u12", "u18", "u22", "u28", "u31"];
 
-export async function seedDatabase(db: Database) {
-  // Wipe in correct order to respect FK constraints
-  await db.match.deleteMany();
-  await db.swipe.deleteMany();
-  await db.user.deleteMany();
-
-  await db.user.createMany({
-    data: [
-      {
-      id: "me",
-      name: "You",
-      age: 22,
-      photoUrl: avatarUrl("me"),
-      bio: "This is you — the main character.",
-      city: "Your City",
-      interests: ["Swiping", "Matching", "Vibing"],
-      },
-      ...MOCK_PROFILES.map((profile) => ({
-        ...profile,
-        photoUrl: avatarUrl(profile.id),
-      })),
-    ],
-  });
-
-  await db.swipe.createMany({
-    data: LIKERS.map((swiperId) => ({
+export function buildSeedOperations(
+  db: Database,
+): Prisma.PrismaPromise<Prisma.BatchPayload>[] {
+  return [
+    db.match.deleteMany(),
+    db.swipe.deleteMany(),
+    db.user.deleteMany(),
+    db.user.createMany({
+      data: [
+        {
+          id: "me",
+          name: "You",
+          age: 22,
+          photoUrl: avatarUrl("me"),
+          bio: "This is you — the main character.",
+          city: "Your City",
+          interests: ["Swiping", "Matching", "Vibing"],
+        },
+        ...MOCK_PROFILES.map((profile) => ({
+          ...profile,
+          photoUrl: avatarUrl(profile.id),
+        })),
+      ],
+    }),
+    db.swipe.createMany({
+      data: LIKERS.map((swiperId) => ({
         swiperId,
         targetId: "me",
         direction: SwipeDirection.LIKE,
-    })),
-  });
+      })),
+    }),
+  ];
+}
+
+export async function seedDatabase(db: Database): Promise<void> {
+  for (const operation of buildSeedOperations(db)) {
+    await operation;
+  }
 }
 
 export type Database = Pick<PrismaClient, "user" | "swipe" | "match">;
