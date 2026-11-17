@@ -14,8 +14,9 @@ const dmSans = DM_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "coy — discover your people",
+  title: "Coy Discover",
   description: "A playful way to discover your next connection.",
+  themeColor: "#E6DFFF",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

@@ -1,6 +1,12 @@
 // @vitest-environment jsdom
 
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import type { PublicProfile } from "@/lib/services/types";
 import { DiscoverDeck } from "@/app/components/discover-deck";
@@ -48,6 +54,7 @@ describe("DiscoverDeck swipe interaction", () => {
   });
 
   afterEach(() => {
+    cleanup();
     vi.restoreAllMocks();
   });
 
@@ -121,5 +128,111 @@ describe("DiscoverDeck swipe interaction", () => {
       },
       { timeout: 5000 },
     );
+  });
+
+  it("shows a mutual-match overlay and closes it with Escape", async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL, init?: RequestInit) => {
+      if (String(input) === "/api/feed") {
+        return Promise.resolve(jsonResponse(profiles));
+      }
+
+      expect(JSON.parse(String(init?.body))).toEqual({
+        targetId: "u1",
+        direction: "LIKE",
+      });
+      return Promise.resolve(
+        jsonResponse({
+          matched: true,
+          match: {
+            id: "match-1",
+            createdAt: new Date().toISOString(),
+            profile: profiles[0],
+          },
+        }),
+      );
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+    render(<DiscoverDeck onMatch={vi.fn()} />);
+
+    await waitFor(() => screen.getByTestId("top-card"));
+    fireEvent.click(screen.getByTestId("like-button"));
+
+    await waitFor(() =>
+      expect(screen.getByRole("dialog").textContent).toContain("It's a match!"),
+    );
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: "Keep swiping" }),
+      ),
+    );
+
+    fireEvent.keyDown(window, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  it("does not show an overlay for a non-match response", async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL) =>
+      String(input) === "/api/feed"
+        ? Promise.resolve(jsonResponse(profiles))
+        : Promise.resolve(jsonResponse({ matched: false })),
+    );
+
+    vi.stubGlobal("fetch", fetchMock);
+    render(<DiscoverDeck onMatch={vi.fn()} />);
+
+    await waitFor(() => screen.getByTestId("top-card"));
+    fireEvent.click(screen.getByTestId("like-button"));
+    await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
+  });
+
+  it("loads matches and renders the empty matches state", async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      if (String(input) === "/api/feed") return Promise.resolve(jsonResponse([]));
+      return Promise.resolve(
+        jsonResponse([
+          {
+            createdAt: new Date().toISOString(),
+            profile: profiles[0],
+          },
+        ]),
+      );
+    });
+
+    vi.stubGlobal("fetch", fetchMock);
+    render(<DiscoverDeck onMatch={vi.fn()} />);
+    await waitFor(() => screen.getByRole("tab", { name: "matches" }));
+    fireEvent.click(screen.getByRole("tab", { name: "matches" }));
+
+    await waitFor(() => expect(screen.getByText("Alpha, 22")).toBeTruthy());
+  });
+
+  it("renders the empty matches state when there are no matches", async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL) =>
+      String(input) === "/api/feed"
+        ? Promise.resolve(jsonResponse([]))
+        : Promise.resolve(jsonResponse([])),
+    );
+
+    vi.stubGlobal("fetch", fetchMock);
+    render(<DiscoverDeck onMatch={vi.fn()} />);
+    await waitFor(() => screen.getByRole("tab", { name: "matches" }));
+    fireEvent.click(screen.getByRole("tab", { name: "matches" }));
+
+    await waitFor(() => expect(screen.getByText("No matches yet")).toBeTruthy());
+  });
+
+  it("hides the action buttons when the deck is empty", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(() => Promise.resolve(jsonResponse([]))),
+    );
+    render(<DiscoverDeck onMatch={vi.fn()} />);
+
+    await waitFor(() =>
+      expect(screen.queryByTestId("top-card")).toBeNull(),
+    );
+    expect(screen.queryByTestId("pass-button")).toBeNull();
+    expect(screen.queryByTestId("like-button")).toBeNull();
   });
 });
