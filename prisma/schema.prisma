@@ -1,0 +1,58 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client"
+  output   = "../src/generated/prisma"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum SwipeDirection {
+  LIKE
+  PASS
+}
+
+model User {
+  id        String   @id
+  name      String
+  age       Int
+  photoUrl  String
+  bio       String
+  city      String
+  interests String[]
+
+  swipesMade     Swipe[] @relation("SwipesMade")
+  swipesReceived Swipe[] @relation("SwipesReceived")
+  matchesAsA     Match[] @relation("MatchAsA")
+  matchesAsB     Match[] @relation("MatchAsB")
+}
+
+model Swipe {
+  id        String         @id @default(cuid())
+  swiperId  String
+  targetId  String
+  direction SwipeDirection
+  createdAt DateTime       @default(now())
+
+  swiper User @relation("SwipesMade", fields: [swiperId], references: [id])
+  target User @relation("SwipesReceived", fields: [targetId], references: [id])
+
+  @@unique([swiperId, targetId])
+  @@index([swiperId])
+  @@index([targetId])
+}
+
+model Match {
+  id        String   @id @default(cuid())
+  userAId   String
+  userBId   String
+  createdAt DateTime @default(now())
+
+  userA User @relation("MatchAsA", fields: [userAId], references: [id])
+  userB User @relation("MatchAsB", fields: [userBId], references: [id])
+
+  @@unique([userAId, userBId])
+}
