@@ -1,4 +1,5 @@
 import { PrismaClient, SwipeDirection } from "@/generated/prisma/client";
+import { avatarUrl } from "@/lib/avatar";
 
 const MOCK_PROFILES = [
   { id: "u1",  name: "Aarav Sharma",      age: 21, city: "IIT Delhi",           bio: "Chai over coffee, always. Building robots when I'm not binge-watching sci-fi.",           interests: ["Robotics", "Sci-Fi", "Chai", "Cricket"] },
@@ -50,14 +51,14 @@ export async function seedDatabase(db: Database) {
       id: "me",
       name: "You",
       age: 22,
-      photoUrl: "https://picsum.photos/seed/me/600/800",
+      photoUrl: avatarUrl("me"),
       bio: "This is you — the main character.",
       city: "Your City",
       interests: ["Swiping", "Matching", "Vibing"],
       },
       ...MOCK_PROFILES.map((profile) => ({
         ...profile,
-        photoUrl: `https://picsum.photos/seed/${profile.id}/600/800`,
+        photoUrl: avatarUrl(profile.id),
       })),
     ],
   });
