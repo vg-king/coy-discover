@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Bricolage_Grotesque, DM_Sans } from "next/font/google";
 import "./globals.css";
 
@@ -16,6 +16,9 @@ const dmSans = DM_Sans({
 export const metadata: Metadata = {
   title: "Coy Discover",
   description: "A playful way to discover your next connection.",
+};
+
+export const viewport: Viewport = {
   themeColor: "#E6DFFF",
 };
 
