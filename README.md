@@ -114,11 +114,11 @@ UI tests cover the swipe order for button and keyboard input (including a slow n
 
 I signed up, added a crush using a second email and my own phone number, and went through the heads-up, the invite link and the extra-slots screen.
 
-### Feature 1: Heads-up channel fallback (WhatsApp first, then SMS, then email)
+### Feature 1: Make WhatsApp the primary heads-up channel, with SMS and email as fallback
 
-**What I observed.** The heads-up reached me by SMS, and the email landed in the Promotions tab. Coy's landing page lists WhatsApp, SMS and email as channels, but in my test I did not receive a WhatsApp message.
+**What I observed.** Coy's site says the heads-up goes out as one message on WhatsApp, SMS or email. In my test (a crush added with both a phone number and an email), I received the SMS and the email, but no WhatsApp message. The email landed in the Promotions tab, so it was easy to miss.
 
-**Suggestion.** Send the heads-up on WhatsApp first. If there is no click or open within 24 to 48 hours, retry on the next channel (SMS, then email), within Coy's existing limit of one message a week and three in total. Send the email as a short, plain, transactional-style message so it is not filed under Promotions. Show the sender only a neutral status such as "Heads-up delivered", never whether the crush opened it.
+**Suggestion.** Send the heads-up on WhatsApp first, whenever the number is on WhatsApp. If there is no click or open within 24 to 48 hours, retry on the next channel (SMS, then email), within Coy's existing limit of one message a week and three in total. Send the email as a short, plain, transactional-style message so it is not filed under Promotions. Show the sender only a neutral status such as "Heads-up delivered", never whether the crush opened it.
 
 **Why it matters.** The whole product depends on the crush actually seeing the heads-up. If it is missed, the crush never joins and a match can never happen. Many people in India rarely read SMS and ignore emails that are not work-related, while WhatsApp is checked daily. A fallback chain increases activation and match rate without sending more messages than the current limits allow.
 
