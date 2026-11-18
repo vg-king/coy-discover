@@ -3,8 +3,8 @@
 A swipe-based **Discover** tab for Coy, built as a standalone app for the Coy SDE Intern assignment.
 Mobile-first, privacy-first: you only ever learn that someone likes you when you like them back.
 
-- **Live demo:** `<add Vercel URL here>`
-- **Repo:** `<add GitHub URL here>`
+- **Live demo:** `https://coy-discover-iota.vercel.app`
+- **Repo:** `https://github.com/vg-king/coy-discover`
 - **Part A (feature suggestions):** see the [last section](#part-a-two-feature-suggestions)
 
 ## Demo in 60 seconds
