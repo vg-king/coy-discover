@@ -6,6 +6,8 @@ import { animate, motion, useMotionValue, useTransform } from "framer-motion";
 import { Heart, MapPin, X } from "lucide-react";
 import {
   forwardRef,
+  type ReactNode,
+  type RefObject,
   useCallback,
   useEffect,
   useImperativeHandle,
@@ -45,6 +47,101 @@ type ProfileCardProps = {
   onSwiped: (profileId: string, direction: SwipeDirection) => void;
 };
 
+type ModalProps = {
+  children: ReactNode;
+  role: "dialog" | "alertdialog";
+  ariaLabelledBy: string;
+  ariaDescribedBy?: string;
+  initialFocusRef: RefObject<HTMLElement | null>;
+  returnFocusRef?: RefObject<HTMLElement | null>;
+  onClose: () => void;
+  overlayClassName: string;
+  cardClassName: string;
+};
+
+function Modal({
+  children,
+  role,
+  ariaLabelledBy,
+  ariaDescribedBy,
+  initialFocusRef,
+  returnFocusRef,
+  onClose,
+  overlayClassName,
+  cardClassName,
+}: ModalProps) {
+  const cardRef = useRef<HTMLElement>(null);
+
+  useEffect(() => {
+    const previousFocus =
+      document.activeElement instanceof HTMLElement
+        ? document.activeElement
+        : null;
+    const returnFocus = returnFocusRef?.current ?? null;
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    const frame = window.requestAnimationFrame(() =>
+      initialFocusRef.current?.focus(),
+    );
+
+    function handleKeyDown(event: KeyboardEvent) {
+      if (event.key === "Escape") {
+        event.preventDefault();
+        onClose();
+        return;
+      }
+
+      if (event.key !== "Tab" || !cardRef.current) return;
+
+      const focusable = Array.from(
+        cardRef.current.querySelectorAll<HTMLElement>(
+          'button:not([disabled]), [href], input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])',
+        ),
+      ).filter((element) => !element.hasAttribute("hidden"));
+
+      if (focusable.length === 0) return;
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+
+      if (event.shiftKey && document.activeElement === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && document.activeElement === last) {
+        event.preventDefault();
+        first.focus();
+      }
+    }
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => {
+      window.cancelAnimationFrame(frame);
+      window.removeEventListener("keydown", handleKeyDown);
+      document.body.style.overflow = previousOverflow;
+      (returnFocus ?? previousFocus)?.focus();
+    };
+  }, [initialFocusRef, onClose, returnFocusRef]);
+
+  return (
+    <div
+      className={`${overlayClassName} coy-modal-overlay`}
+      onMouseDown={(event) => {
+        if (event.target === event.currentTarget) onClose();
+      }}
+    >
+      <section
+        ref={cardRef}
+        role={role}
+        aria-modal="true"
+        aria-labelledby={ariaLabelledBy}
+        aria-describedby={ariaDescribedBy}
+        className={`${cardClassName} coy-modal-card`}
+      >
+        {children}
+      </section>
+    </div>
+  );
+}
+
 const ProfileCard = forwardRef<SwipeCardHandle, ProfileCardProps>(
   function ProfileCard({ profile, isTop, onSwiped }, ref) {
     const x = useMotionValue(0);
@@ -53,6 +150,7 @@ const ProfileCard = forwardRef<SwipeCardHandle, ProfileCardProps>(
     const nopeOpacity = useTransform(x, [-110, 0], [1, 0]);
     const leavingRef = useRef(false);
     const [isLeaving, setIsLeaving] = useState(false);
+    const [isDragging, setIsDragging] = useState(false);
 
     const swipe = useCallback(
       async (direction: SwipeDirection) => {
@@ -100,7 +198,9 @@ const ProfileCard = forwardRef<SwipeCardHandle, ProfileCardProps>(
     return (
       <motion.article
         data-testid={isTop ? "top-card" : "next-card"}
-        className="absolute inset-0 overflow-hidden rounded-card border-[2.5px] border-coy-ink bg-coy-lavender"
+        className={`absolute inset-0 overflow-hidden rounded-card border-[2.5px] border-coy-ink bg-coy-lavender ${
+          isTop ? (isDragging ? "cursor-grabbing" : "cursor-grab") : ""
+        }`}
         style={isTop ? { x, rotate } : undefined}
         initial={isTop ? { opacity: 0, y: 8, scale: 0.98 } : undefined}
         animate={
@@ -114,8 +214,16 @@ const ProfileCard = forwardRef<SwipeCardHandle, ProfileCardProps>(
         dragConstraints={{ left: 0, right: 0 }}
         dragElastic={0.9}
         dragMomentum={false}
-        onDragStart={() => x.stop()}
-        onDragEnd={isTop ? handleDragEnd : undefined}
+        onDragStart={() => {
+          x.stop();
+          setIsDragging(true);
+        }}
+        onDragEnd={isTop
+          ? (event, info) => {
+              setIsDragging(false);
+              handleDragEnd(event, info);
+            }
+          : undefined}
         aria-label={`${profile.name}, ${profile.age}`}
       >
         <img
@@ -236,7 +344,6 @@ export function DiscoverDeck({ onMatch }: DiscoverDeckProps) {
   const requestQueueRef = useRef<Promise<void>>(Promise.resolve());
   const dialogOpenRef = useRef(false);
   const matchPrimaryRef = useRef<HTMLButtonElement>(null);
-  const previousFocusRef = useRef<HTMLElement | null>(null);
   const [matches, setMatches] = useState<MatchItem[]>([]);
   const [matchesLoading, setMatchesLoading] = useState(false);
   const [matchesError, setMatchesError] = useState(false);
@@ -244,6 +351,10 @@ export function DiscoverDeck({ onMatch }: DiscoverDeckProps) {
   const [hasNewMatch, setHasNewMatch] = useState(false);
   const [canReset, setCanReset] = useState(true);
   const [isResetting, setIsResetting] = useState(false);
+  const [resetDialogOpen, setResetDialogOpen] = useState(false);
+  const resetButtonRef = useRef<HTMLButtonElement>(null);
+  const resetCancelRef = useRef<HTMLButtonElement>(null);
+  const resetSubmittingRef = useRef(false);
 
   const showToast = useCallback((message: string) => {
     setToast(message);
@@ -287,8 +398,10 @@ export function DiscoverDeck({ onMatch }: DiscoverDeckProps) {
 
   useEffect(() => {
     dialogOpenRef.current =
-      pendingMatches.length > 0 || selectedMatch !== null;
-  }, [pendingMatches.length, selectedMatch]);
+      pendingMatches.length > 0 ||
+      selectedMatch !== null ||
+      resetDialogOpen;
+  }, [pendingMatches.length, selectedMatch, resetDialogOpen]);
 
   useEffect(() => {
     // The fetch callback is the external synchronization point for initial data.
@@ -299,35 +412,6 @@ export function DiscoverDeck({ onMatch }: DiscoverDeckProps) {
   const closeMatchOverlay = useCallback(() => {
     setPendingMatches((current) => current.slice(1));
   }, []);
-
-  useEffect(() => {
-    if (!activeMatch) return;
-
-    previousFocusRef.current =
-      document.activeElement instanceof HTMLElement ? document.activeElement : null;
-    const previousOverflow = document.body.style.overflow;
-    document.body.style.overflow = "hidden";
-    requestAnimationFrame(() => matchPrimaryRef.current?.focus());
-
-    return () => {
-      document.body.style.overflow = previousOverflow;
-      previousFocusRef.current?.focus();
-    };
-  }, [activeMatch]);
-
-  useEffect(() => {
-    if (!activeMatch) return;
-
-    function handleOverlayKeyDown(event: KeyboardEvent) {
-      if (event.key === "Escape") {
-        event.preventDefault();
-        closeMatchOverlay();
-      }
-    }
-
-    window.addEventListener("keydown", handleOverlayKeyDown);
-    return () => window.removeEventListener("keydown", handleOverlayKeyDown);
-  }, [activeMatch, closeMatchOverlay]);
 
   useEffect(() => {
     if (!selectedMatch) return;
@@ -350,25 +434,30 @@ export function DiscoverDeck({ onMatch }: DiscoverDeckProps) {
   }, [fetchMatches]);
 
   const resetDemo = useCallback(async () => {
-    if (!window.confirm("Reset the demo and start swiping fresh?")) return;
+    if (resetSubmittingRef.current) return;
 
+    resetSubmittingRef.current = true;
     setIsResetting(true);
     try {
       const response = await fetch("/api/reset", { method: "POST" });
       if (response.status === 403 || response.status === 404) {
+        setResetDialogOpen(false);
         setCanReset(false);
         return;
       }
       if (!response.ok) throw new Error("Could not reset the demo.");
 
+      setResetDialogOpen(false);
       setPendingMatches([]);
       setMatches([]);
       setSelectedMatch(null);
       setHasNewMatch(false);
       await fetchFeed();
     } catch {
+      setResetDialogOpen(false);
       showToast("The demo could not be reset.");
     } finally {
+      resetSubmittingRef.current = false;
       setIsResetting(false);
     }
   }, [fetchFeed, showToast]);
@@ -598,30 +687,26 @@ export function DiscoverDeck({ onMatch }: DiscoverDeckProps) {
           {canReset && (
             <button
               type="button"
+              ref={resetButtonRef}
               className="mx-auto mt-1 h-6 shrink-0 px-3 text-xs font-bold text-coy-muted underline decoration-coy-pink decoration-2 underline-offset-2"
-              onClick={() => void resetDemo()}
-              disabled={isResetting}
+              onClick={() => setResetDialogOpen(true)}
             >
-              {isResetting ? "Resetting…" : "Reset demo"}
+              Reset demo
             </button>
           )}
         </>
       )}
 
       {activeMatch && (
-        <div
-          className="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-coy-lavender px-5"
-          onMouseDown={(event) => {
-            if (event.target === event.currentTarget) closeMatchOverlay();
-          }}
+        <Modal
+          role="dialog"
+          ariaLabelledBy="match-title"
+          initialFocusRef={matchPrimaryRef}
+          onClose={closeMatchOverlay}
+          overlayClassName="fixed inset-0 z-50 flex items-center justify-center overflow-hidden bg-coy-lavender px-5"
+          cardClassName="ink-surface relative w-full max-w-[390px] rounded-card bg-coy-bg p-6 text-center"
         >
           <Confetti />
-          <section
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="match-title"
-            className="ink-surface relative w-full max-w-[390px] rounded-card bg-coy-bg p-6 text-center"
-          >
             <img
               src={avatarUrl(activeMatch.profile.id)}
               alt=""
@@ -654,8 +739,54 @@ export function DiscoverDeck({ onMatch }: DiscoverDeckProps) {
             >
               View matches
             </button>
-          </section>
-        </div>
+        </Modal>
+      )}
+
+      {resetDialogOpen && (
+        <Modal
+          role="alertdialog"
+          ariaLabelledBy="reset-dialog-title"
+          ariaDescribedBy="reset-dialog-description"
+          initialFocusRef={resetCancelRef}
+          returnFocusRef={resetButtonRef}
+          onClose={() => {
+            if (!resetSubmittingRef.current) setResetDialogOpen(false);
+          }}
+          overlayClassName="fixed inset-0 z-[70] flex items-center justify-center bg-coy-ink/40 px-5"
+          cardClassName="ink-surface w-full max-w-[390px] rounded-card bg-coy-bg p-6"
+        >
+          <h2
+            id="reset-dialog-title"
+            className="font-heading text-3xl font-extrabold tracking-[-0.04em]"
+          >
+            Reset the demo?
+          </h2>
+          <p
+            id="reset-dialog-description"
+            className="mt-3 text-sm leading-5 text-coy-muted"
+          >
+            This clears your swipes and matches and starts fresh.
+          </p>
+          <div className="mt-6 flex gap-3">
+            <button
+              type="button"
+              ref={resetCancelRef}
+              className="ink-surface ink-press min-h-11 flex-1 rounded-pill bg-white px-4 text-sm font-extrabold"
+              onClick={() => setResetDialogOpen(false)}
+              disabled={isResetting}
+            >
+              Cancel
+            </button>
+            <button
+              type="button"
+              className="ink-surface ink-press min-h-11 flex-1 rounded-pill bg-coy-pink px-4 text-sm font-extrabold"
+              onClick={() => void resetDemo()}
+              disabled={isResetting}
+            >
+              {isResetting ? "Resetting..." : "Yes, reset"}
+            </button>
+          </div>
+        </Modal>
       )}
 
       {selectedMatch && (

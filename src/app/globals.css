@@ -39,6 +39,22 @@ a {
   -webkit-tap-highlight-color: transparent;
 }
 
+button,
+[role="button"],
+a[href],
+summary,
+select,
+label[for],
+input[type="checkbox"],
+input[type="radio"] {
+  cursor: pointer;
+}
+
+button:disabled,
+[aria-disabled="true"] {
+  cursor: not-allowed;
+}
+
 .ink-surface {
   border: 2.5px solid var(--foreground);
   box-shadow: var(--shadow-ink);
@@ -73,9 +89,32 @@ a {
   animation: coy-confetti 2.8s ease-out infinite;
 }
 
+@keyframes coy-modal-overlay {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes coy-modal-card {
+  from { opacity: 0; transform: scale(0.96); }
+  to { opacity: 1; transform: scale(1); }
+}
+
+.coy-modal-overlay {
+  animation: coy-modal-overlay 160ms ease-out;
+}
+
+.coy-modal-card {
+  animation: coy-modal-card 160ms ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .coy-confetti {
     animation: none;
     opacity: 0.7;
+  }
+
+  .coy-modal-overlay,
+  .coy-modal-card {
+    animation: none;
   }
 }

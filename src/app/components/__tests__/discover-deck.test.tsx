@@ -238,4 +238,87 @@ describe("DiscoverDeck swipe interaction", () => {
     expect(screen.queryByTestId("pass-button")).toBeNull();
     expect(screen.queryByTestId("like-button")).toBeNull();
   });
+
+  it("opens the reset alert dialog without calling reset", async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL) =>
+      String(input) === "/api/feed"
+        ? Promise.resolve(jsonResponse([]))
+        : Promise.resolve(jsonResponse({ ok: true })),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    render(<DiscoverDeck onMatch={vi.fn()} />);
+
+    const resetButton = await screen.findByRole("button", { name: "Reset demo" });
+    fireEvent.click(resetButton);
+
+    expect(screen.getByRole("alertdialog")).toBeTruthy();
+    expect(fetchMock.mock.calls.some(([input]) => String(input) === "/api/reset")).toBe(false);
+  });
+
+  it("closes the reset dialog with Escape or Cancel without resetting", async () => {
+    const fetchMock = vi.fn((input: RequestInfo | URL) =>
+      String(input) === "/api/feed"
+        ? Promise.resolve(jsonResponse([]))
+        : Promise.resolve(jsonResponse({ ok: true })),
+    );
+    vi.stubGlobal("fetch", fetchMock);
+    render(<DiscoverDeck onMatch={vi.fn()} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Reset demo" }));
+    fireEvent.keyDown(window, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+
+    fireEvent.click(await screen.findByRole("button", { name: "Reset demo" }));
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+    await waitFor(() => expect(screen.queryByRole("alertdialog")).toBeNull());
+
+    expect(fetchMock.mock.calls.some(([input]) => String(input) === "/api/reset")).toBe(false);
+  });
+
+  it("submits reset only once for repeated Yes clicks", async () => {
+    let resetCalls = 0;
+    const fetchMock = vi.fn((input: RequestInfo | URL) => {
+      if (String(input) === "/api/feed") return Promise.resolve(jsonResponse([]));
+      if (String(input) === "/api/reset") {
+        resetCalls += 1;
+        return Promise.resolve(jsonResponse({ ok: true }));
+      }
+      return Promise.resolve(jsonResponse({ ok: true }));
+    });
+    vi.stubGlobal("fetch", fetchMock);
+    render(<DiscoverDeck onMatch={vi.fn()} />);
+
+    fireEvent.click(await screen.findByRole("button", { name: "Reset demo" }));
+    const confirm = screen.getByRole("button", { name: "Yes, reset" });
+    fireEvent.click(confirm);
+    fireEvent.click(confirm);
+
+    await waitFor(() => expect(resetCalls).toBe(1));
+  });
+
+  it("focuses Cancel on open and returns focus to Reset demo on close", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn((input: RequestInfo | URL) =>
+        String(input) === "/api/feed"
+          ? Promise.resolve(jsonResponse([]))
+          : Promise.resolve(jsonResponse({ ok: true })),
+      ),
+    );
+    render(<DiscoverDeck onMatch={vi.fn()} />);
+
+    const resetButton = await screen.findByRole("button", { name: "Reset demo" });
+    fireEvent.click(resetButton);
+
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        screen.getByRole("button", { name: "Cancel" }),
+      ),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Cancel" }));
+
+    await waitFor(() =>
+      expect(document.activeElement).toBe(resetButton),
+    );
+  });
 });
